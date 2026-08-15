@@ -31,7 +31,7 @@
                     'defines': ['DELAYLOAD_HOOK'],
                     'msvs_settings': {
                         'VCCLCompilerTool': {
-                            'AdditionalOptions': ['/DELAYLOAD:boost_log-vc141-mt-x64-1_66.dll','/DELAYLOAD:boost_thread-vc141-mt-x64-1_66.dll','/DELAYLOAD:boost_system-vc141-mt-x64-1_66.dll','/DELAYLOAD:vsomeip3-sd.dll','/DELAYLOAD:vsomeip3-cfg.dll','/DELAYLOAD:vsomeip3-e2e.dll','/DELAYLOAD:vsomeip3.dll'],
+                            'AdditionalOptions': ['/utf-8','/DELAYLOAD:boost_log-vc141-mt-x64-1_66.dll','/DELAYLOAD:boost_thread-vc141-mt-x64-1_66.dll','/DELAYLOAD:boost_system-vc141-mt-x64-1_66.dll','/DELAYLOAD:vsomeip3-sd.dll','/DELAYLOAD:vsomeip3-cfg.dll','/DELAYLOAD:vsomeip3-e2e.dll','/DELAYLOAD:vsomeip3.dll'],
                             'ExceptionHandling': 1
                         }
                     },

@@ -225,6 +225,13 @@ const initPromise = new Promise<void>((resolve, reject) => {
 
 let testCnt = 0
 const testEnableControl: Record<number, boolean> = {}
+// The main process fills testEnableControl via the __start message AFTER the
+// worker bundle has been loaded; node:test schedules tests before that IPC
+// round-trip completes, so tests must wait for the control map to arrive.
+let testControlReadyResolve: () => void = () => {}
+const testControlReadyPromise = new Promise<void>((resolve) => {
+  testControlReadyResolve = resolve
+})
 
 /**
  * 辅助函数：保留原始错误的堆栈信息
@@ -302,6 +309,7 @@ export function test(name: string, fn: () => void | Promise<void>) {
       init = true
     }
 
+    await testControlReadyPromise
     const currentTestCnt = testCnt
     const enabled = testEnableControl[currentTestCnt] == true
     let advanced = false
@@ -559,8 +567,8 @@ import {
 import { SomeipMessage, SomeipMessageType, VsomeipAvailabilityInfo } from '../share/someip'
 import { getAllSysVar } from '../share/sysVar'
 
-const selfDescribe = process.env.ONLY == 'true' ? nodeDescribe.only : nodeDescribe
 const selfTest = process.env.ONLY == 'true' ? nodeTest.only : nodeTest
+
 // export { selfDescribe as describe }
 
 /**
@@ -2288,6 +2296,7 @@ export class UtilClass {
     if (testControl) {
       Object.assign(testEnableControl, testControl)
     }
+    testControlReadyResolve()
   }
   private async canMsg(msg: CanMessage) {
     // Convert Buffer objects if needed

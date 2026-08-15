@@ -29,7 +29,7 @@
                     'defines': ['DELAYLOAD_HOOK',],
                     'msvs_settings': {
                         'VCCLCompilerTool': {
-                            'AdditionalOptions': ['/DELAYLOAD:linlib.dll'],
+                            'AdditionalOptions': ['/utf-8','/DELAYLOAD:linlib.dll'],
                             'ExceptionHandling': 1
                         }
                     },
@@ -92,7 +92,7 @@
                     'defines': ['DELAYLOAD_HOOK',],
                     'msvs_settings': {
                         'VCCLCompilerTool': {
-                            'AdditionalOptions': ['/DELAYLOAD:PLinApi.dll'],
+                            'AdditionalOptions': ['/utf-8','/DELAYLOAD:PLinApi.dll'],
                             'ExceptionHandling': 1
                         }
                     },
@@ -155,7 +155,7 @@
                     'defines': ['DELAYLOAD_HOOK',],
                     'msvs_settings': {
                         'VCCLCompilerTool': {
-                            'AdditionalOptions': [ '/DELAYLOAD:USB2XXX.dll','/DELAYLOAD:libusb-1.0.dll' ],
+                            'AdditionalOptions': ['/utf-8', '/DELAYLOAD:USB2XXX.dll','/DELAYLOAD:libusb-1.0.dll' ],
                             'ExceptionHandling':1
                         }
                     },

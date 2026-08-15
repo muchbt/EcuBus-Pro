@@ -99,6 +99,7 @@ export default async function main(
   node.close()
 
   const node1 = new NodeClass(testItem, projectPath, projectName, {
+    testOnly: true,
     id: testItem.id
   })
   node1.init(
@@ -163,14 +164,20 @@ export default async function main(
     }
 
     const root2tree = (cnt: number, parent: TestTreeWithCnt, root: TestTreeNode): number => {
+      // Suite/config nodes (describe) must NOT consume a testCnt: the worker
+      // side only increments its counter per test(), so CLI numbering must
+      // match or the -t pattern enables the wrong test (off-by-one skip).
+      const isSuite = root.type === 'config'
       const newNode: TestTreeWithCnt = {
-        testCnt: cnt,
+        testCnt: isSuite ? undefined : cnt,
         id: root.id,
-        type: 'test',
+        type: root.type,
         label: root.label,
         children: []
       }
-      cnt++
+      if (!isSuite) {
+        cnt++
+      }
       parent.children.push(newNode)
 
       if (root.children && root.children.length > 0) {
@@ -309,6 +316,7 @@ export default async function main(
       for (const testCnt of uniqueTestCnts) {
         EnableObj[testCnt] = true
       }
+
     } else {
       // Run all tests (config mode)
       isSingleRun = undefined
@@ -363,7 +371,7 @@ function buildSubTree(infos: TestEvent[]): TestTreeNode[] {
 
     currentSuite = {
       id: testId,
-      type: 'test',
+      type: event.nesting === 0 ? 'config' : 'test',
       label: event.name,
       nesting: event.nesting,
       parent: currentSuite,

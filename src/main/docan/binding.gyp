@@ -28,7 +28,7 @@
                     'defines': [ 'DELAYLOAD_HOOK' ],
                     'msvs_settings': {
                         'VCCLCompilerTool': {
-                            'AdditionalOptions': [ ],
+                            'AdditionalOptions': ['/utf-8', ],
                             'ExceptionHandling':1
                         }
                     },
@@ -85,7 +85,7 @@
                     'defines': [ 'DELAYLOAD_HOOK' ],
                     'msvs_settings': {
                         'VCCLCompilerTool': {
-                            'AdditionalOptions': [ '/DELAYLOAD:PCAN-ISO-TP.dll','/DELAYLOAD:PCANBasic.dll' ],
+                            'AdditionalOptions': ['/utf-8', '/DELAYLOAD:PCAN-ISO-TP.dll','/DELAYLOAD:PCANBasic.dll' ],
                             'ExceptionHandling':1
                         }
                     },
@@ -139,7 +139,7 @@
                     'defines': [ 'DELAYLOAD_HOOK' ],
                     'msvs_settings': {
                         'VCCLCompilerTool': {
-                            'AdditionalOptions': [ '/DELAYLOAD:canlib32.dll' ],
+                            'AdditionalOptions': ['/utf-8', '/DELAYLOAD:canlib32.dll' ],
                             'ExceptionHandling':1
                         }
                     },
@@ -192,7 +192,7 @@
                     'defines': [ 'DELAYLOAD_HOOK' ],
                     'msvs_settings': {
                         'VCCLCompilerTool': {
-                            'AdditionalOptions': [ '/DELAYLOAD:zlgcan.dll','/DELAYLOAD:msvcp120.dll','/DELAYLOAD:msvcr120.dll' ],
+                            'AdditionalOptions': ['/utf-8', '/DELAYLOAD:zlgcan.dll','/DELAYLOAD:msvcp120.dll','/DELAYLOAD:msvcr120.dll' ],
                             'ExceptionHandling':1
                         }
                     },
@@ -245,7 +245,7 @@
                     'defines': [ 'DELAYLOAD_HOOK' ],
                     'msvs_settings': {
                         'VCCLCompilerTool': {
-                            'AdditionalOptions': [ '/DELAYLOAD:USB2XXX.dll','/DELAYLOAD:libusb-1.0.dll' ],
+                            'AdditionalOptions': ['/utf-8', '/DELAYLOAD:USB2XXX.dll','/DELAYLOAD:libusb-1.0.dll' ],
                             'ExceptionHandling':1
                         }
                     },
@@ -299,7 +299,7 @@
                 'defines': [ 'DELAYLOAD_HOOK' ],
                 'msvs_settings': {
                     'VCCLCompilerTool': {
-                        'AdditionalOptions': [ '/DELAYLOAD:vxlapi64.dll' ],
+                        'AdditionalOptions': ['/utf-8', '/DELAYLOAD:vxlapi64.dll' ],
                         'ExceptionHandling':1
                     }
                 },
