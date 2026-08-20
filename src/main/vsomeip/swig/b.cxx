@@ -598,9 +598,12 @@ void VsomeipCallbackWrapper::registerSubscriptionHandler(uint16_t service, uint1
     
     auto context = callbackRegistry[callbackId];
     app_->register_subscription_handler(service, instance, eventgroup, 
-        [context](client_t client, uid_t uid, gid_t gid, bool is_subscribed) -> bool {
-            CallJsCallback(context.get(), [client, uid, gid, is_subscribed](Napi::Env env, Napi::Function jsCallback) {
+        [context, service, instance, eventgroup](client_t client, uid_t uid, gid_t gid, bool is_subscribed) -> bool {
+            CallJsCallback(context.get(), [client, uid, gid, is_subscribed, service, instance, eventgroup](Napi::Env env, Napi::Function jsCallback) {
                 Napi::Object subscriptionObj = Napi::Object::New(env);
+                subscriptionObj.Set("service", Napi::Number::New(env, service));
+                subscriptionObj.Set("instance", Napi::Number::New(env, instance));
+                subscriptionObj.Set("eventgroup", Napi::Number::New(env, eventgroup));
                 subscriptionObj.Set("client", Napi::Number::New(env, client));
                 subscriptionObj.Set("uid", Napi::Number::New(env, uid));
                 subscriptionObj.Set("gid", Napi::Number::New(env, gid));

@@ -669,6 +669,9 @@ export interface VsomeipAvailabilityInfo {
 }
 
 export interface VsomeipSubscriptionInfo {
+  service: number
+  instance: number
+  eventgroup: number
   client: number
   uid: number
   gid: number

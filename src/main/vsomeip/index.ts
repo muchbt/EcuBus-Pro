@@ -17,7 +17,8 @@ import {
   ServiceEvent,
   ServiceEventgroup,
   SomeipMessageType,
-  VsomeipAvailabilityInfo
+  VsomeipAvailabilityInfo,
+  VsomeipSubscriptionInfo
 } from '../share/someip'
 
 function mapEventForVsomeipJson(e: ServiceEvent): Record<string, unknown> {
@@ -269,8 +270,9 @@ export class VSomeIP_Client {
   private resolveProviderReady!: () => void
   private rejectProviderReady!: (reason?: any) => void
   private providerOfferStarted = false
-  private providerSubscriberSeen = false
   private offeredEvents = new Set<string>()
+  private offeredEventgroups = new Map<string, Set<string>>()
+  private subscribedEventgroups = new Set<string>()
   private subscriptionHandlerGroups = new Set<string>()
   constructor(
     private name: string,
@@ -374,16 +376,24 @@ export class VSomeIP_Client {
         }
         break
       }
-      case 'subscription':
+      case 'subscription': {
         // 这里 callbackData.data 自动是 VsomeipSubscriptionInfo
+        const subscriptionKey = this.offeredEventgroupKey(
+          callbackData.data.service,
+          callbackData.data.instance,
+          callbackData.data.eventgroup
+        )
         if (callbackData.data.subscribed) {
-          this.providerSubscriberSeen = true
+          this.subscribedEventgroups.add(subscriptionKey)
+        } else {
+          this.subscribedEventgroups.delete(subscriptionKey)
         }
         console.error(
-          `[DEBUG-geea-someip-r48-subscription] mono_us=${(process.hrtime.bigint() / 1000n).toString()} client=${callbackData.data.client} subscribed=${callbackData.data.subscribed}`
+          `[DEBUG-geea-someip-r54-subscription] mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${callbackData.data.service} instance=${callbackData.data.instance} eventgroup=${callbackData.data.eventgroup} client=${callbackData.data.client} subscribed=${callbackData.data.subscribed}`
         )
         this.event.emit('subscription', callbackData.data)
         break
+      }
       case 'subscription_status':
         // 这里 callbackData.data 自动是 VsomeipSubscriptionStatusInfo
         console.log('Subscription status:', callbackData.data)
@@ -634,6 +644,14 @@ export class VSomeIP_Client {
         if (matchedGroups.length === 0) {
           continue
         }
+        this.offeredEventgroups.set(
+          this.offeredEventKey(service, instance, event),
+          new Set(
+            matchedGroups.map((eventgroup) =>
+              this.offeredEventgroupKey(service, instance, eventgroup)
+            )
+          )
+        )
         const isField = eventCfg.is_field === true || eventCfg.is_field === 'true'
         const eventType = isField ? 2 : 0 // vsomeip event_type_e: ET_FIELD=2, ET_EVENT=0
         try {
@@ -687,6 +705,7 @@ export class VSomeIP_Client {
   }
   async waitForPublisherReady(service: number, instance: number, event: number, timeout: number) {
     const eventKey = this.offeredEventKey(service, instance, event)
+    const requiredEventgroups = () => this.offeredEventgroups.get(eventKey)
     return new Promise<void>((resolve, reject) => {
       let completed = false
       const complete = (error?: unknown) => {
@@ -697,8 +716,17 @@ export class VSomeIP_Client {
         if (error) reject(error)
         else resolve()
       }
-      const onSubscription = (subscription: { subscribed: boolean }) => {
-        if (subscription.subscribed) complete()
+      const onSubscription = (subscription: VsomeipSubscriptionInfo) => {
+        const subscriptionKey = this.offeredEventgroupKey(
+          subscription.service,
+          subscription.instance,
+          subscription.eventgroup
+        )
+        const matchesTargetEventgroup = requiredEventgroups()?.has(subscriptionKey) ?? false
+        console.error(
+          `[DEBUG-geea-someip-r54-publisher-ready] mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${service} instance=${instance} event=${event} callback_service=${subscription.service} callback_instance=${subscription.instance} callback_eventgroup=${subscription.eventgroup} subscribed=${subscription.subscribed} matches_target_eventgroup=${matchesTargetEventgroup}`
+        )
+        if (subscription.subscribed && matchesTargetEventgroup) complete()
       }
       const timer = setTimeout(
         () => complete(new Error('SOMEIP_PUBLISHER_SUBSCRIPTION_TIMEOUT')),
@@ -707,9 +735,14 @@ export class VSomeIP_Client {
       this.event.on('subscription', onSubscription)
       this.providerReady
         .then(() => {
-          if (!this.offeredEvents.has(eventKey)) {
+          const targetEventgroups = requiredEventgroups()
+          if (!this.offeredEvents.has(eventKey) || !targetEventgroups?.size) {
             complete(new Error('SOMEIP_PUBLISHER_EVENT_NOT_OFFERED'))
-          } else if (this.providerSubscriberSeen) {
+          } else if (
+            Array.from(targetEventgroups).some((eventgroupKey) =>
+              this.subscribedEventgroups.has(eventgroupKey)
+            )
+          ) {
             complete()
           }
         })

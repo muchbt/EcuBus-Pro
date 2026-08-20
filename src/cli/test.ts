@@ -328,6 +328,16 @@ export default async function main(
     }
   }
 
+  const discoveredRunnableTests = testInfo.some(
+    (item: any) =>
+      typeof item === 'object' &&
+      item.type === 'test:dequeue' &&
+      item.data?.name !== '____ecubus_pro_test___'
+  )
+  if (discoveredRunnableTests && Object.keys(EnableObj).length === 0) {
+    throw new Error('test discovery produced an empty enable-control map')
+  }
+
   await node1.start(EnableObj)
   const finalTestInfo = await node1.getTestInfo()
 
@@ -371,7 +381,7 @@ function buildSubTree(infos: TestEvent[]): TestTreeNode[] {
 
     currentSuite = {
       id: testId,
-      type: event.nesting === 0 ? 'config' : 'test',
+      type: 'test',
       label: event.name,
       nesting: event.nesting,
       parent: currentSuite,
@@ -403,6 +413,13 @@ function buildSubTree(infos: TestEvent[]): TestTreeNode[] {
           currentSuite!.nesting !== event.data.nesting
         ) {
           startTest(event.data)
+        }
+
+        // Top-level test() and describe() both have nesting=0. Node 20's
+        // completion event identifies suites explicitly, including an empty
+        // describe(), so use that metadata instead of nesting or children.
+        if ((event.data as any).details?.type === 'suite') {
+          currentSuite!.type = 'config'
         }
 
         if (currentSuite?.nesting === event.data.nesting) {
@@ -521,7 +538,11 @@ function analyzeTestResults(
         summary.total++
         break
       case 'test:pass':
-        summary.passed++
+        if ((event.data as any).skip) {
+          summary.skipped++
+        } else {
+          summary.passed++
+        }
         break
       case 'test:fail':
         summary.failed++
