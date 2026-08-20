@@ -231,6 +231,9 @@ export class NodeClass {
       if (someipBaseItem) {
         this.someipBaseId.push(c)
         const wrappedSomeipCb = (msg: SomeipMessage) => {
+          console.error(
+            `[DEBUG-geea-someip-node] service=${msg.service} instance=${msg.instance} method=${msg.method} type=${msg.messageType}`
+          )
           msg.device = someipBaseItem.info.name
           this.boundCb(msg)
         }
@@ -1145,16 +1148,23 @@ export class NodeClass {
       throw new Error(`device ${frame.device} not found`)
     } else if ('instance' in frame) {
       frame.payload = Buffer.from(frame.payload)
+      const sendSomeip = async (baseItem: VSomeIP_Client) => {
+        const fields = `mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${frame.service} instance=${frame.instance} method=${frame.method} client=${frame.client} session=${frame.session} type=${frame.messageType} return=${frame.returnCode} payload_len=${frame.payload.length}`
+        console.error(`[DEBUG-geea-someip-r42-node-send-before] ${fields}`)
+        const ts = await baseItem.sendRequest(frame)
+        console.error(`[DEBUG-geea-someip-r42-node-send-after] ${fields} send_ts_us=${ts}`)
+        return ts
+      }
       if (this.someipBaseId.length == 1) {
         const baseItem = this.someipMap.get(this.someipBaseId[0])
         if (baseItem) {
-          return await baseItem.sendRequest(frame)
+          return await sendSomeip(baseItem)
         }
       }
       for (const c of this.someipBaseId) {
         const baseItem = this.someipMap.get(c)
         if (baseItem && baseItem.info.name == frame.device) {
-          return await baseItem.sendRequest(frame)
+          return await sendSomeip(baseItem)
         }
       }
       throw new Error(`device ${frame.device} not found`)
@@ -1605,6 +1615,9 @@ export class NodeClass {
         void this.pool?.triggerSerialFrame(frame).catch(reportAsyncError)
       }
     } else if ('instance' in frame) {
+      console.error(
+        `[DEBUG-geea-someip-worker-dispatch] service=${frame.service} instance=${frame.instance} method=${frame.method} pool=${this.pool !== undefined}`
+      )
       void this.pool?.triggerSomeipFrame(frame).catch(reportAsyncError)
     } else {
       if (frame.uuid != this.nodeItem.id || frame.direction == LinDirection.RECV) {

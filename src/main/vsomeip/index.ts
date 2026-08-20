@@ -244,6 +244,11 @@ export const VsomeipState: Record<number, { level: string; msg: string }> = {
   4: { level: 'warning', msg: 'ST_ASSIGNED' }
 }
 
+function r42SomeipFields(msg: SomeipMessage): string {
+  const payload = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload as any)
+  return `mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${msg.service} instance=${msg.instance} method=${msg.method} client=${msg.client} session=${msg.session} type=${msg.messageType} return=${msg.returnCode} payload_len=${payload.length}`
+}
+
 export class VSomeIP_Client {
   private worker: ChildProcess
   private id = 0
@@ -287,6 +292,11 @@ export class VSomeIP_Client {
         this.callback(event)
       }
     })
+    this.worker.on('exit', (code, signal) => {
+      console.error(
+        `[DEBUG-geea-someip-r42-worker-exit] mono_us=${(process.hrtime.bigint() / 1000n).toString()} code=${code} signal=${signal}`
+      )
+    })
   }
   attachSomeipMessage(cb: (msg: SomeipMessage) => void) {
     this.event.on('someip-frame', cb)
@@ -311,6 +321,9 @@ export class VSomeIP_Client {
     const ts = getTsUs() - global.startTs
     switch (callbackData.type) {
       case 'state': {
+        console.error(
+          `[DEBUG-geea-someip-r42-state] mono_us=${(process.hrtime.bigint() / 1000n).toString()} state=${callbackData.data}`
+        )
         if (this.state != callbackData.data) {
           this.state = callbackData.data
           const stateStr = VsomeipState[callbackData.data] || `Unknown state: ${callbackData.data}`
@@ -323,9 +336,15 @@ export class VSomeIP_Client {
         break
       }
       case 'message':
+        console.error(
+          `[DEBUG-geea-someip-callback] service=${callbackData.data.service} instance=${callbackData.data.instance} method=${callbackData.data.method} type=${callbackData.data.messageType}`
+        )
         this.log.someipMessage(callbackData.data, false, ts)
         break
       case 'availability': {
+        console.error(
+          `[DEBUG-geea-someip-r42-availability] mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${callbackData.data.service} instance=${callbackData.data.instance} available=${callbackData.data.available}`
+        )
         if (callbackData.data.instance != 0xffff && callbackData.data.service != 0xffff) {
           // 这里 callbackData.data 自动是 VsomeipAvailabilityInfo
           this.log.someipServiceValid(callbackData.data, ts)
@@ -371,7 +390,10 @@ export class VSomeIP_Client {
     }
   }
   async sendRequest(msg: SomeipMessage) {
+    const fields = r42SomeipFields(msg)
+    console.error(`[DEBUG-geea-someip-r42-main-worker-before] ${fields}`)
     await this.send('sendRequest', { msg })
+    console.error(`[DEBUG-geea-someip-r42-main-worker-after] ${fields}`)
     const ts = getTsUs() - global.startTs
 
     return ts
@@ -527,7 +549,13 @@ export class VSomeIP_Client {
     })
   }
   async stop() {
+    console.error(
+      `[DEBUG-geea-someip-r42-main-stop-before] mono_us=${(process.hrtime.bigint() / 1000n).toString()} worker_killed=${this.worker.killed}`
+    )
     this.worker.kill()
+    console.error(
+      `[DEBUG-geea-someip-r42-main-stop-after] mono_us=${(process.hrtime.bigint() / 1000n).toString()} worker_killed=${this.worker.killed}`
+    )
   }
   private send(method: string, data: any) {
     return new Promise((resolve, reject) => {

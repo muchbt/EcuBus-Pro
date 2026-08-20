@@ -4,6 +4,12 @@ import { SomeipMessage, SomeipMessageType } from '../share/someip'
 import client from './client'
 
 let instance: client | null = null
+
+function r42SomeipFields(msg: SomeipMessage): string {
+  const payload = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload as any)
+  return `mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${msg.service} instance=${msg.instance} method=${msg.method} client=${msg.client} session=${msg.session} type=${msg.messageType} return=${msg.returnCode} payload_len=${payload.length}`
+}
+
 process.on('message', (message: any) => {
   const id = message.id
   const method = message.method
@@ -47,8 +53,14 @@ process.on('message', (message: any) => {
       break
     }
     case 'stop': {
+      console.error(
+        `[DEBUG-geea-someip-r42-worker-stop-before] mono_us=${(process.hrtime.bigint() / 1000n).toString()} instance=${instance !== null}`
+      )
       instance?.stop()
       instance = null
+      console.error(
+        `[DEBUG-geea-someip-r42-worker-stop-after] mono_us=${(process.hrtime.bigint() / 1000n).toString()} instance=${instance !== null}`
+      )
       break
     }
     case 'requestService': {
@@ -61,7 +73,14 @@ process.on('message', (message: any) => {
       break
     }
     case 'sendRequest': {
+      const fields = r42SomeipFields(data.msg)
+      console.error(
+        `[DEBUG-geea-someip-r42-worker-native-before] ${fields} instance=${instance !== null}`
+      )
       instance?.sendMessage(data.msg)
+      console.error(
+        `[DEBUG-geea-someip-r42-worker-native-after] ${fields} instance=${instance !== null}`
+      )
       break
     }
     case 'notifyEvent': {
@@ -108,13 +127,34 @@ process.on('message', (message: any) => {
     }
     case 'offerServices': {
       for (const e of data.services) {
-        instance?.app.offer_service(Number(e.service), Number(e.instance))
+        console.error(
+          `[DEBUG-geea-someip-r42-offer-before] mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${e.service} instance=${e.instance} major=${e.major ?? 0} minor=${e.minor ?? 0}`
+        )
+        // The Windows routing path does not reliably dispatch external
+        // provider requests through the all-wildcard handler. Register the
+        // configured service/instance explicitly while retaining ANY_METHOD.
+        instance?.registerServiceMessageHandler(Number(e.service), Number(e.instance))
+        instance?.app.offer_service(
+          Number(e.service),
+          Number(e.instance),
+          Number(e.major ?? 0),
+          Number(e.minor ?? 0)
+        )
+        console.error(
+          `[DEBUG-geea-someip-r42-offer-after] mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${e.service} instance=${e.instance}`
+        )
       }
       break
     }
     case 'stopOfferServices': {
       for (const e of data.services) {
+        console.error(
+          `[DEBUG-geea-someip-r42-stop-offer-before] mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${e.service} instance=${e.instance}`
+        )
         instance?.app.stop_offer_service(Number(e.service), Number(e.instance))
+        console.error(
+          `[DEBUG-geea-someip-r42-stop-offer-after] mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${e.service} instance=${e.instance}`
+        )
       }
       break
     }

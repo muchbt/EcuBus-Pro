@@ -34,6 +34,13 @@ export type VsomeipEventMap = {
     : (data: Extract<VsomeipCallbackData, { type: K }>['data']) => void
 }
 
+function r42SomeipFields(message: SomeipMessage): string {
+  const payload = Buffer.isBuffer(message.payload)
+    ? message.payload
+    : Buffer.from(message.payload as any)
+  return `mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${message.service} instance=${message.instance} method=${message.method} client=${message.client} session=${message.session} type=${message.messageType} return=${message.returnCode} payload_len=${payload.length}`
+}
+
 export default class VSomeIP_Client {
   private rtm: any
   app: any
@@ -58,6 +65,8 @@ export default class VSomeIP_Client {
   }
 
   sendMessage(message: SomeipMessage) {
+    const fields = r42SomeipFields(message)
+    console.error(`[DEBUG-geea-someip-r42-napi-before] ${fields}`)
     const msg = new vsomeip.SomeipMessage()
     msg.service = message.service
     msg.instance = message.instance
@@ -71,6 +80,7 @@ export default class VSomeIP_Client {
     msg.interfaceVersion = message.interfaceVersion
     msg.reliable = message.reliable || false
     this.sendc.sendMessage(msg, Buffer.from(message.payload))
+    console.error(`[DEBUG-geea-someip-r42-napi-after] ${fields}`)
   }
 
   startPeriodicMessage(
@@ -138,7 +148,14 @@ export default class VSomeIP_Client {
     this.cb.start()
   }
 
+  registerServiceMessageHandler(service: number, instance: number) {
+    this.cb.registerMessageHandler(service, instance, 0xffff, this.cbId)
+  }
+
   stop() {
+    console.error(
+      `[DEBUG-geea-someip-r42-native-stop-before] mono_us=${(process.hrtime.bigint() / 1000n).toString()} name=${this.name}`
+    )
     this.app.clear_all_handler()
 
     if (this.cb) {
@@ -148,5 +165,8 @@ export default class VSomeIP_Client {
     vsomeip.UnregisterCallback(this.cbId)
 
     this.rtm.remove_application(this.name)
+    console.error(
+      `[DEBUG-geea-someip-r42-native-stop-after] mono_us=${(process.hrtime.bigint() / 1000n).toString()} name=${this.name}`
+    )
   }
 }

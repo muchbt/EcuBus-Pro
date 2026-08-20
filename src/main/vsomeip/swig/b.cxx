@@ -408,6 +408,17 @@ void Send::notify_event(
 }
 
 void Send::sendMessage(struct SomeipMessage* message,char* data,uint32_t length){
+    std::cerr << "[DEBUG-geea-someip-r42-native-send-before] mono_us="
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     std::chrono::steady_clock::now().time_since_epoch()).count()
+              << " service=" << message->service
+              << " instance=" << message->instance
+              << " method=" << message->method
+              << " client=" << message->client
+              << " session=" << message->session
+              << " type=" << static_cast<unsigned int>(message->messageType)
+              << " return=" << static_cast<unsigned int>(message->returnCode)
+              << " payload_len=" << length << '\n';
     // Create a new request
     std::shared_ptr<vsomeip::message> rq = rtm_->create_message(message->reliable);
     
@@ -433,6 +444,17 @@ void Send::sendMessage(struct SomeipMessage* message,char* data,uint32_t length)
     // Send the request to the service. Response will be delivered to the
     // registered message handler
     app_->send(rq);
+    std::cerr << "[DEBUG-geea-someip-r42-native-send-after] mono_us="
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     std::chrono::steady_clock::now().time_since_epoch()).count()
+              << " service=" << message->service
+              << " instance=" << message->instance
+              << " method=" << message->method
+              << " client=" << message->client
+              << " session=" << message->session
+              << " type=" << static_cast<unsigned int>(message->messageType)
+              << " return=" << static_cast<unsigned int>(message->returnCode)
+              << " payload_len=" << length << '\n';
 }
 
 Send::~Send(){
@@ -706,4 +728,3 @@ Napi::Value UnregisterCallback(const Napi::CallbackInfo& info) {
     
     return env.Undefined();
 }
-

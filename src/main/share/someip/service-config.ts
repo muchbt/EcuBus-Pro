@@ -229,6 +229,18 @@ export interface ServiceConfig {
   instance: string
 
   /**
+   * SOME/IP service interface major version used when registering the offer.
+   * Defaults to the vSomeIP default (`0`) for legacy projects.
+   */
+  major?: number
+
+  /**
+   * SOME/IP service interface minor version used when registering the offer.
+   * Defaults to the vSomeIP default (`0`) for legacy projects.
+   */
+  minor?: number
+
+  /**
    * The protocol that is used to implement the service instance.
    * The default value is someip. If a different setting is provided,
    * vsomeip does not open the specified port (server side) or does not

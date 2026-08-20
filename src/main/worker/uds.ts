@@ -299,6 +299,7 @@ async function preserveErrorStack<T>(fn: () => T | Promise<T>): Promise<T> {
 
 export function test(name: string, fn: () => void | Promise<void>) {
   selfTest(name, async (t) => {
+    __dbg('test() invoked: ' + name)
     if (!init) {
       try {
         await initPromise
@@ -312,7 +313,9 @@ export function test(name: string, fn: () => void | Promise<void>) {
     await testControlReadyPromise
     const currentTestCnt = testCnt
     const enabled = testEnableControl[currentTestCnt] == true
+    __dbg('test() decide: ' + name + ' cnt=' + currentTestCnt + ' enabled=' + enabled + ' map=' + JSON.stringify(testEnableControl))
     let advanced = false
+    console.log(`[TBDEBUG] test '${name}' cnt=${currentTestCnt} enabled=${enabled} map=${JSON.stringify(testEnableControl)}`);
     const advanceTestCnt = () => {
       if (!advanced) {
         testCnt = Math.max(testCnt, currentTestCnt + 1)
@@ -567,8 +570,12 @@ import {
 import { SomeipMessage, SomeipMessageType, VsomeipAvailabilityInfo } from '../share/someip'
 import { getAllSysVar } from '../share/sysVar'
 
+const selfDescribe = process.env.ONLY == 'true' ? nodeDescribe.only : nodeDescribe
 const selfTest = process.env.ONLY == 'true' ? nodeTest.only : nodeTest
-
+const __dbg = (m: string) => {
+  try { require('fs').appendFileSync('D:/EcuBus_PoC/runs/tcam-windows-ecb-cli-20260814T080432Z/worker_debug.log', new Date().toISOString() + ' ' + m + '\n') } catch (e) {}
+}
+__dbg('module loaded ONLY=' + process.env.ONLY + ' MODE=' + process.env.MODE)
 // export { selfDescribe as describe }
 
 /**
@@ -624,6 +631,7 @@ const selfTest = process.env.ONLY == 'true' ? nodeTest.only : nodeTest
  */
 export function describe(name: string, fn: () => void | Promise<void>) {
   selfDescribe(name, async (t) => {
+    __dbg('describe() invoked: ' + name)
     return preserveErrorStack(fn)
   })
 }
@@ -2340,6 +2348,9 @@ export class UtilClass {
     await this.event.emit('serial' as any, msg)
   }
   private async someipMsg(data: SomeipMessage) {
+    console.error(
+      `[DEBUG-geea-someip-worker] service=${data.service} instance=${data.instance} method=${data.method} type=${data.messageType}`
+    )
     let someipMsg: SomeipMessageBase
     if (
       data.messageType == SomeipMessageType.REQUEST ||
