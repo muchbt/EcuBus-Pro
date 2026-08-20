@@ -265,6 +265,13 @@ export class VSomeIP_Client {
     number,
     { resolve: (value: unknown) => void; reject: (reason?: any) => void }
   >()
+  private providerReady: Promise<void>
+  private resolveProviderReady!: () => void
+  private rejectProviderReady!: (reason?: any) => void
+  private providerOfferStarted = false
+  private providerSubscriberSeen = false
+  private offeredEvents = new Set<string>()
+  private subscriptionHandlerGroups = new Set<string>()
   constructor(
     private name: string,
     private configFilePath: string,
@@ -278,6 +285,10 @@ export class VSomeIP_Client {
       this.event,
       Number(this.info.application.id)
     )
+    this.providerReady = new Promise<void>((resolve, reject) => {
+      this.resolveProviderReady = resolve
+      this.rejectProviderReady = reject
+    })
     this.worker.on('message', (message: any) => {
       const id = message.id
       if (id !== undefined) {
@@ -329,8 +340,7 @@ export class VSomeIP_Client {
           const stateStr = VsomeipState[callbackData.data] || `Unknown state: ${callbackData.data}`
           sysLog.log(stateStr.level, `${this.name} - ${stateStr.msg}`)
           if (callbackData.data == 0) {
-            this.offerService(this.info.services)
-            void this.offerConfiguredEvents()
+            void this.offerConfiguredProvider()
           }
         }
         break
@@ -366,6 +376,12 @@ export class VSomeIP_Client {
       }
       case 'subscription':
         // 这里 callbackData.data 自动是 VsomeipSubscriptionInfo
+        if (callbackData.data.subscribed) {
+          this.providerSubscriberSeen = true
+        }
+        console.error(
+          `[DEBUG-geea-someip-r48-subscription] mono_us=${(process.hrtime.bigint() / 1000n).toString()} client=${callbackData.data.client} subscribed=${callbackData.data.subscribed}`
+        )
         this.event.emit('subscription', callbackData.data)
         break
       case 'subscription_status':
@@ -410,12 +426,17 @@ export class VSomeIP_Client {
     force: boolean = false
   ) {
     const buf = Buffer.isBuffer(payload) ? payload : Buffer.from(payload)
+    const fields = `mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${service} instance=${instance} event=${event} payload_len=${buf.length}`
+    console.error(`[DEBUG-geea-someip-r48-notify-main-before] ${fields}`)
     return this.send('notifyEvent', {
       service,
       instance,
       event,
       payload: buf,
       force
+    }).then((value) => {
+      console.error(`[DEBUG-geea-someip-r48-notify-main-after] ${fields}`)
+      return value
     })
   }
   startPeriodicMessage(
@@ -575,6 +596,27 @@ export class VSomeIP_Client {
   offerService(services: ServiceConfig[]) {
     return this.send('offerServices', { services })
   }
+  private offeredEventKey(service: number, instance: number, event: number) {
+    return `${service}.${instance}.${event}`
+  }
+  private offeredEventgroupKey(service: number, instance: number, eventgroup: number) {
+    return `${service}.${instance}.${eventgroup}`
+  }
+  private async offerConfiguredProvider() {
+    if (this.providerOfferStarted) return
+    this.providerOfferStarted = true
+    try {
+      await this.offerService(this.info.services)
+      await this.offerConfiguredEvents()
+      this.resolveProviderReady()
+      console.error(
+        `[DEBUG-geea-someip-r48-provider-offered] mono_us=${(process.hrtime.bigint() / 1000n).toString()} services=${(this.info.services || []).length} events=${this.offeredEvents.size}`
+      )
+    } catch (error) {
+      this.rejectProviderReady(error)
+      console.error(`[DEBUG-geea-someip-r48-provider-offer-failed] ${String(error)}`)
+    }
+  }
   private async offerConfiguredEvents() {
     for (const serviceCfg of this.info.services || []) {
       const events = serviceCfg.events || []
@@ -595,7 +637,24 @@ export class VSomeIP_Client {
         const isField = eventCfg.is_field === true || eventCfg.is_field === 'true'
         const eventType = isField ? 2 : 0 // vsomeip event_type_e: ET_FIELD=2, ET_EVENT=0
         try {
+          for (const eventgroup of matchedGroups) {
+            const eventgroupKey = this.offeredEventgroupKey(service, instance, eventgroup)
+            if (!this.subscriptionHandlerGroups.has(eventgroupKey)) {
+              await this.registerSubscriptionHandler(service, instance, eventgroup)
+              this.subscriptionHandlerGroups.add(eventgroupKey)
+              console.error(
+                `[DEBUG-geea-someip-r48-subscription-handler] mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${service} instance=${instance} eventgroup=${eventgroup}`
+              )
+            }
+          }
+          console.error(
+            `[DEBUG-geea-someip-r48-offer-event-before] mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${service} instance=${instance} event=${event} eventgroups=${matchedGroups.join(',')}`
+          )
           await this.offerEvent(service, instance, event, matchedGroups, eventType)
+          this.offeredEvents.add(this.offeredEventKey(service, instance, event))
+          console.error(
+            `[DEBUG-geea-someip-r48-offer-event-after] mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${service} instance=${instance} event=${event}`
+          )
         } catch (e) {
           sysLog.error(
             `offerEvent failed for ${serviceCfg.service}.${serviceCfg.instance}.${eventCfg.event}: ${e}`
@@ -621,6 +680,40 @@ export class VSomeIP_Client {
       event,
       eventgroups,
       eventType
+    })
+  }
+  private registerSubscriptionHandler(service: number, instance: number, eventgroup: number) {
+    return this.send('registerSubscriptionHandler', { service, instance, eventgroup })
+  }
+  async waitForPublisherReady(service: number, instance: number, event: number, timeout: number) {
+    const eventKey = this.offeredEventKey(service, instance, event)
+    return new Promise<void>((resolve, reject) => {
+      let completed = false
+      const complete = (error?: unknown) => {
+        if (completed) return
+        completed = true
+        clearTimeout(timer)
+        this.event.off('subscription', onSubscription)
+        if (error) reject(error)
+        else resolve()
+      }
+      const onSubscription = (subscription: { subscribed: boolean }) => {
+        if (subscription.subscribed) complete()
+      }
+      const timer = setTimeout(
+        () => complete(new Error('SOMEIP_PUBLISHER_SUBSCRIPTION_TIMEOUT')),
+        timeout
+      )
+      this.event.on('subscription', onSubscription)
+      this.providerReady
+        .then(() => {
+          if (!this.offeredEvents.has(eventKey)) {
+            complete(new Error('SOMEIP_PUBLISHER_EVENT_NOT_OFFERED'))
+          } else if (this.providerSubscriberSeen) {
+            complete()
+          }
+        })
+        .catch(complete)
     })
   }
   stopOfferEvent(service: number, instance: number, event: number) {

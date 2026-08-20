@@ -365,6 +365,52 @@ export async function someipNotify(opts: SomeipNotifyOpts): Promise<void> {
 }
 
 /**
+ * Options for waiting until a configured SOME/IP publisher has completed its
+ * native offer setup and accepted a subscriber for one of its offered event
+ * groups.
+ *
+ * @category SOME/IP
+ */
+export interface SomeipPublisherReadyOpts {
+  /** SOME/IP device id when multiple stacks are attached to the script node. */
+  channel?: string
+  /** Offered service identifier. */
+  service: number
+  /** Offered service instance identifier. */
+  instance: number
+  /** Offered event identifier that will be notified after readiness. */
+  eventId: number
+  /** Maximum wait for native offer setup and a subscriber acknowledgement. */
+  timeoutMs?: number
+}
+
+/**
+ * Wait for the provider-side vSomeIP setup required before publishing an
+ * event. Resolution proves that the local application registered, issued its
+ * service/event offers, and accepted a subscription on an offered eventgroup;
+ * it does not claim that a later notification has already left the NIC.
+ *
+ * @category SOME/IP
+ */
+export async function someipWaitForPublisherReady(opts: SomeipPublisherReadyOpts): Promise<void> {
+  if (
+    !Number.isFinite(Number(opts.service)) ||
+    !Number.isFinite(Number(opts.instance)) ||
+    !Number.isFinite(Number(opts.eventId))
+  ) {
+    throw new Error('someipWaitForPublisherReady requires service, instance, and eventId')
+  }
+  await emitMain({
+    op: 'waitPublisherReady',
+    channel: opts.channel,
+    service: Number(opts.service),
+    instance: Number(opts.instance),
+    event: Number(opts.eventId),
+    timeout: opts.timeoutMs ?? 10000
+  })
+}
+
+/**
  * Options for {@link someipSubscribe} — client-side subscription to an event group / event.
  */
 export interface SomeipSubscribeOpts {

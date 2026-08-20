@@ -87,12 +87,19 @@ process.on('message', (message: any) => {
       const pl = data.payload
       const buf = Buffer.isBuffer(pl) ? pl : Buffer.from((pl as any)?.data ?? pl ?? [])
       // SWIG: 4 args (…, buf) or 5 args (…, buf, force); char*+length come from one Buffer via vsomeip.i typemap
+      const fields = `mono_us=${(process.hrtime.bigint() / 1000n).toString()} service=${Number(data.service)} instance=${Number(data.instance)} event=${Number(data.event)} payload_len=${buf.length}`
+      console.error(
+        `[DEBUG-geea-someip-r48-notify-native-before] ${fields} instance=${instance !== null}`
+      )
       instance?.sendc.notify_event(
         Number(data.service),
         Number(data.instance),
         Number(data.event),
         buf,
         Boolean(data.force)
+      )
+      console.error(
+        `[DEBUG-geea-someip-r48-notify-native-after] ${fields} instance=${instance !== null}`
       )
       break
     }
@@ -199,6 +206,14 @@ process.on('message', (message: any) => {
         Number(data.event),
         eventgroups.join(','),
         Number(data.eventType ?? 0)
+      )
+      break
+    }
+    case 'registerSubscriptionHandler': {
+      instance?.registerSubscriptionHandler(
+        Number(data.service),
+        Number(data.instance),
+        Number(data.eventgroup)
       )
       break
     }

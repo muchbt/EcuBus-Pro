@@ -102,6 +102,14 @@ export type SomeipApiCall =
       msg: SomeipMessage
     }
   | {
+      op: 'waitPublisherReady'
+      channel?: string
+      service: number
+      instance: number
+      event: number
+      timeout: number
+    }
+  | {
       op: 'subscribe'
       channel?: string
       service: number

@@ -152,6 +152,10 @@ export default class VSomeIP_Client {
     this.cb.registerMessageHandler(service, instance, 0xffff, this.cbId)
   }
 
+  registerSubscriptionHandler(service: number, instance: number, eventgroup: number) {
+    this.cb.registerSubscriptionHandler(service, instance, eventgroup, this.cbId)
+  }
+
   stop() {
     console.error(
       `[DEBUG-geea-someip-r42-native-stop-before] mono_us=${(process.hrtime.bigint() / 1000n).toString()} name=${this.name}`

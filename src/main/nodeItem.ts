@@ -1079,6 +1079,10 @@ export class NodeClass {
       )
       return { ok: true }
     }
+    if (data.op === 'waitPublisherReady') {
+      await base.waitForPublisherReady(data.service, data.instance, data.event, data.timeout)
+      return { ok: true }
+    }
 
     const msg = { ...data.msg, payload: toBuf(data.msg.payload), sending: true as const }
 
