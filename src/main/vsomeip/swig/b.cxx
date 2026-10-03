@@ -444,6 +444,12 @@ void Send::sendMessage(struct SomeipMessage* message,char* data,uint32_t length)
     // Send the request to the service. Response will be delivered to the
     // registered message handler
     app_->send(rq);
+    // Requests acquire their wire identity inside application::send. Return
+    // that actual message header through the existing mutable SWIG argument.
+    message->client = rq->get_client();
+    message->session = rq->get_session();
+    message->protocolVersion = rq->get_protocol_version();
+    message->interfaceVersion = rq->get_interface_version();
     std::cerr << "[DEBUG-geea-someip-r42-native-send-after] mono_us="
               << std::chrono::duration_cast<std::chrono::microseconds>(
                      std::chrono::steady_clock::now().time_since_epoch()).count()

@@ -81,6 +81,15 @@ export default class VSomeIP_Client {
     msg.reliable = message.reliable || false
     this.sendc.sendMessage(msg, Buffer.from(message.payload))
     console.error(`[DEBUG-geea-someip-r42-napi-after] ${fields}`)
+    return {
+      ...message,
+      client: msg.client,
+      session: msg.session,
+      protocolVersion: msg.protocolVersion,
+      interfaceVersion: msg.interfaceVersion,
+      payload: Buffer.from(message.payload),
+      sending: true
+    }
   }
 
   startPeriodicMessage(

@@ -77,7 +77,11 @@ process.on('message', (message: any) => {
       console.error(
         `[DEBUG-geea-someip-r42-worker-native-before] ${fields} instance=${instance !== null}`
       )
-      instance?.sendMessage(data.msg)
+      if (!instance) throw new Error('SomeIP is not initialized')
+      const sent = instance.sendMessage(data.msg)
+      // Publish the stack-assigned header before the acknowledgement and any
+      // queued inbound callbacks, preserving frame order on the IPC channel.
+      process.send!({ event: { type: 'message', data: sent } })
       console.error(
         `[DEBUG-geea-someip-r42-worker-native-after] ${fields} instance=${instance !== null}`
       )
